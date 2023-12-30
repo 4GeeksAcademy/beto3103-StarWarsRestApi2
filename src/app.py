@@ -89,7 +89,7 @@ def get_one_planet(theid):
 def get_user():
     user = User.query.all()
     user = list(map(lambda item: item.serialize(), user))
-    return 
+    return jsonify(user), 200
 
 #addFavoritePlanet or Character
 @app.route("/favorite/<string:nature>/<int:nature_id>/<int:user_id>", methods=["POST"])
@@ -124,6 +124,62 @@ def add_favorite(nature, nature_id, user_id):
             print(error)
             db.session.rollback()
             return jsonify({"message":"error adding a character"}), 500
+        
+#getFavorite one User
+@app.route('/users/<int:id>/favorites', methods=['GET'])
+def get_favorites(id):
+    user = User.query.get(id)
+    if user is None:
+        return jsonify({"message": f"user{id} not found"}), 404
+    if user.favorite == []:
+        return jsonify({"message": f"user{id} has no favorites"}), 400
+    result = []
+    for favorite in user.favorite:
+        result.append(favorite.serialize())
+    return jsonify(result), 200
+
+#deletePlanet from Favorite
+@app.route('/user/<int:user_id>/favorite/planet/<int:planet_id>', methods=['DELETE'])
+def delete_planet_fav(user_id, planet_id):
+    user = User.query.get(user_id)
+    planet = Planet.query.get(planet_id)
+
+    if user is None:
+        return jsonify({"message": f"user{user_id} not found"}), 404
+    if planet is None:
+        return jsonify({"message": "planet not found"}), 404
+    
+    favorite = Favorite.query.filter_by(user_id=user.id, planet_id=planet.id).first()
+    
+    if favorite is None:
+        return jsonify({"msg": "Favorite not found"}), 404
+
+    db.session.delete(favorite)
+    try:
+        db.session.commit()
+        return jsonify({"msg": "Planet deleted from favorites"}), 200
+    except Exception as error:
+        return jsonify({"error": f"{error}"}), 500
+    
+#deleteFavoriteCharacter
+@app.route('/user/<int:user_id>/favorite/people/<int:people_id>', methods=['DELETE'])
+def delete_people_fav(user_id, people_id):
+    user = User.query.get(user_id)
+    people = People.query.get(people_id)
+
+    if user is None:
+        return jsonify({"message": f"user{user_id} not found"}), 404
+    if people is None:
+        return jsonify({"message": "people not found"}), 404
+    
+    favorite = Favorite.query.filter_by(user_id=user.id, people_id=people.id).first()
+
+    db.session.delete(favorite)
+    try:
+        db.session.commit()
+        return jsonify({"msg": "People deleted from favorites"}), 200
+    except Exception as error:
+        return jsonify({"error": f"{error}"}), 500
 
 #deletePlanetOrCharacter
 @app.route("/<string:nature>/<int:id_nature>", methods=["DELETE"])
